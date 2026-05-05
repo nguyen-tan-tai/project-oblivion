@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oblivion-api
+  labels:
+    app: oblivion-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oblivion-api
+  template:
+    metadata:
+      labels:
+        app: oblivion-api
+    spec:
+      containers:
+        - name: api
+          image: localhost:32000/oblivion-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oblivion-ui
+  labels:
+    app: oblivion-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oblivion-ui
+  template:
+    metadata:
+      labels:
+        app: oblivion-ui
+    spec:
+      containers:
+        - name: ui
+          image: localhost:32000/oblivion-ui:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
