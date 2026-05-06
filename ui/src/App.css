@@ -124,8 +124,11 @@
   text-decoration: none;
 }
 
-.result-box a:hover {
-  text-decoration: underline;
+.result-box pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
 }
 
 .placeholder-box {

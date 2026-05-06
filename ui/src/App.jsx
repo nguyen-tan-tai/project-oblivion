@@ -2,20 +2,23 @@ import { useState } from 'react'
 import './App.css'
 
 const MESSAGE_LIMIT = 1024
-const API_URL = 'http://oblivionriver.com/api/message'
-const MESSAGE_URL = 'http://oblivionriver.com/message'
+const API_URL = '/api/message'
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000
 
-function generateHash(length = 16) {
-  const bytes = new Uint8Array(Math.ceil(length / 2))
-  crypto.getRandomValues(bytes)
+function formatDateTimeLocal(timestamp) {
+  if (!timestamp) {
+    return ''
+  }
 
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, length)
+  const date = new Date(timestamp)
+  const pad = (value) => String(value).padStart(2, '0')
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function App() {
   const [message, setMessage] = useState('')
+  const [expireTime, setExpireTime] = useState(() => Date.now() + DEFAULT_TTL_MS)
   const [resultUrl, setResultUrl] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -37,27 +40,30 @@ function App() {
       return
     }
 
-    const id = crypto.randomUUID()
-    const hash = generateHash()
-
     setIsSubmitting(true)
     setError('')
     setResultUrl('')
 
     try {
+      const payload = {
+        message,
+        expireTime,
+      }
+
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id, hash }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}.`)
       }
 
-      setResultUrl(`${MESSAGE_URL}/${id}#${hash}`)
+      const result = await response.json()
+      setResultUrl(JSON.stringify(result, null, 2))
     } catch (requestError) {
       setError(requestError.message || 'Unable to create the message.')
     } finally {
@@ -71,8 +77,7 @@ function App() {
         <p className="eyebrow">Oblivion Project</p>
         <h1>Create an oblivion message</h1>
         <p className="hero-copy">
-          Enter a message, generate a one-time message address, and return the
-          link with its fragment hash.
+          Enter a message and generate a one-time message address.
         </p>
       </section>
 
@@ -90,6 +95,28 @@ function App() {
             maxLength={MESSAGE_LIMIT}
             placeholder="Write the message to protect..."
             required
+          />
+
+          <label className="field-label" htmlFor="ttl">
+            TTL
+          </label>
+          <input
+            id="ttl"
+            name="ttl"
+            className="secret-input"
+            type="datetime-local"
+            value={formatDateTimeLocal(expireTime)}
+            onChange={(event) => {
+              const { value } = event.target
+
+              if (!value) {
+                setExpireTime(null)
+                return
+              }
+
+              const expireTtl = new Date(value).getTime()
+              setExpireTime(Number.isNaN(expireTtl) ? null : expireTtl)
+            }}
           />
 
           <div className="form-footer">
@@ -110,13 +137,11 @@ function App() {
           <h2>Result</h2>
           {resultUrl ? (
             <div className="feedback-box result-box">
-              <a href={resultUrl} target="_blank" rel="noreferrer">
-                {resultUrl}
-              </a>
+              <pre>{resultUrl}</pre>
             </div>
           ) : (
             <div className="feedback-box placeholder-box">
-              The generated message link will appear here.
+              The API response will appear here.
             </div>
           )}
         </section>

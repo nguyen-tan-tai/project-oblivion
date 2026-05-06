@@ -1,4 +1,4 @@
-package com.oblivion;
+package com.oblivion.controller;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
@@ -16,5 +16,4 @@ class GreetingResourceTest {
              .statusCode(200)
              .body(is("Hello from Quarkus REST"));
     }
-
 }

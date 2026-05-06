@@ -1,0 +1,41 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:3.3.0
+    container_name: oblivion-dynamodb-local
+    restart: unless-stopped
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    ports:
+      - "8000:8000"
+    working_dir: /home/dynamodblocal
+
+  dynamodb-init:
+    image: amazon/aws-cli:latest
+    container_name: oblivion-dynamodb-init
+    depends_on:
+      - dynamodb-local
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
+      DYNAMODB_TABLE_NAME: oblivion_messages
+      DYNAMODB_TTL_ATTRIBUTE: expireTime
+    volumes:
+      - ./scripts/init-dynamodb.sh:/scripts/init-dynamodb.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/init-dynamodb.sh"]
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    container_name: oblivion-dynamodb-admin
+    restart: unless-stopped
+    depends_on:
+      - dynamodb-local
+      - dynamodb-init
+    environment:
+      DYNAMO_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+    ports:
+      - "8001:8001"
+

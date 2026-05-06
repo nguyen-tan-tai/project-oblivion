@@ -1,4 +1,4 @@
-package com.oblivion;
+package com.oblivion.controller;
 
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 
