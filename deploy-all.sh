@@ -41,3 +41,54 @@ kubectl apply -f "$UI_DIR"/k8s/deployment.yaml
 kubectl apply -f "$UI_DIR"/k8s/service.yaml
 kubectl get pods
 kubectl get services
+
+echo "-------------------------------------------"
+echo "Initializing DynamoDB table..."
+kubectl delete pod aws-cli-init --ignore-not-found
+kubectl run aws-cli-init \
+	--restart=Never \
+	--image=amazon/aws-cli:latest \
+	--env="AWS_REGION=us-east-1" \
+	--env="AWS_ACCESS_KEY_ID=dummy" \
+	--env="AWS_SECRET_ACCESS_KEY=dummy" \
+	--command -- sh -c '
+		aws dynamodb describe-table \
+			--table-name oblivion_messages \
+			--endpoint-url http://oblivion-dynamodb-local:8000 \
+		>/dev/null 2>&1 || \
+		aws dynamodb create-table \
+			--table-name oblivion_messages \
+			--attribute-definitions AttributeName=messageId,AttributeType=S \
+			--key-schema AttributeName=messageId,KeyType=HASH \
+			--billing-mode PAY_PER_REQUEST \
+			--endpoint-url http://oblivion-dynamodb-local:8000
+
+		aws dynamodb wait table-exists \
+			--table-name oblivion_messages \
+			--endpoint-url http://oblivion-dynamodb-local:8000
+
+		aws dynamodb update-time-to-live \
+			--table-name oblivion_messages \
+			--time-to-live-specification Enabled=true,AttributeName=expireTime \
+			--endpoint-url http://oblivion-dynamodb-local:8000 || true
+	'
+ATTEMPTS=12
+for _ in $(seq 1 "$ATTEMPTS"); do
+	PHASE=$(kubectl get pod aws-cli-init -o jsonpath='{.status.phase}' 2>/dev/null || true)
+	if [ "$PHASE" = "Succeeded" ]; then
+		break
+	fi
+	if [ "$PHASE" = "Failed" ]; then
+		kubectl logs pod/aws-cli-init || true
+		exit 1
+	fi
+	sleep 10
+done
+
+PHASE=$(kubectl get pod aws-cli-init -o jsonpath='{.status.phase}' 2>/dev/null || true)
+if [ "$PHASE" != "Succeeded" ]; then
+	kubectl logs pod/aws-cli-init || true
+	exit 1
+fi
+kubectl logs pod/aws-cli-init
+kubectl delete pod aws-cli-init --ignore-not-found
