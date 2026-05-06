@@ -26,7 +26,6 @@ public class MessageController {
     MessageValidator messageValidator;
 
     @POST
-    @Path("/")
     @Consumes(MediaType.APPLICATION_JSON)
     public Map<String, String> create(CreateMessageInput createMessageInput) {
         messageValidator.validateCreatePayloadOrThrow(createMessageInput);
