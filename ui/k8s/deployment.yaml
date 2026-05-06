@@ -17,7 +17,7 @@ spec:
       containers:
         - name: ui
           image: localhost:32000/oblivion-ui:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http
