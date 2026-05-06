@@ -44,6 +44,23 @@ kubectl get services
 
 echo "-------------------------------------------"
 echo "Initializing DynamoDB table..."
+kubectl rollout status deployment/oblivion-dynamodb-local --timeout=120s
+ATTEMPTS=12
+for _ in $(seq 1 "$ATTEMPTS"); do
+	DYNAMODB_ENDPOINTS=$(kubectl get endpoints oblivion-dynamodb-local -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)
+	if [ -n "$DYNAMODB_ENDPOINTS" ]; then
+		break
+	fi
+	sleep 10
+done
+
+if [ -z "$DYNAMODB_ENDPOINTS" ]; then
+	echo "DynamoDB service has no ready endpoints."
+	kubectl get pods -l app=oblivion-dynamodb-local || true
+	kubectl describe service oblivion-dynamodb-local || true
+	exit 1
+fi
+
 kubectl delete pod aws-cli-init --ignore-not-found
 kubectl run aws-cli-init \
 	--restart=Never \
