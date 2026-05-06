@@ -1,26 +1,20 @@
-## Stage 1 : build with maven builder image with native capabilities
-FROM quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21 AS build
-COPY --chown=quarkus:quarkus --chmod=0755 mvnw /code/mvnw
-COPY --chown=quarkus:quarkus .mvn /code/.mvn
-COPY --chown=quarkus:quarkus pom.xml /code/
-USER quarkus
-WORKDIR /code
-RUN --mount=type=cache,target=/root/.m2 ./mvnw -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline
-COPY ./src /code/src
-RUN --mount=type=cache,target=/root/.m2 ./mvnw package -Dnative
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+WORKDIR /workspace
 
-## Stage 2 : create the docker final image
-FROM quay.io/quarkus/ubi9-quarkus-micro-image:2.0
-WORKDIR /work/
-COPY --from=build /code/target/*-runner /work/application
+COPY pom.xml ./
+RUN --mount=type=cache,target=/root/.m2 mvn -B dependency:go-offline
 
-# set up permissions for user `1001`
-RUN chmod 775 /work /work/application \
-  && chown -R 1001 /work \
-  && chmod -R "g+rwX" /work \
-  && chown -R 1001:root /work
+COPY src src
+RUN --mount=type=cache,target=/root/.m2 mvn -B package -DskipTests
+
+FROM eclipse-temurin:21-jre
+WORKDIR /work
+
+COPY --from=build /workspace/target/quarkus-app/lib/ /work/lib/
+COPY --from=build /workspace/target/quarkus-app/*.jar /work/
+COPY --from=build /workspace/target/quarkus-app/app/ /work/app/
+COPY --from=build /workspace/target/quarkus-app/quarkus/ /work/quarkus/
 
 EXPOSE 8080
-USER 1001
 
-CMD ["./application", "-Dquarkus.http.host=0.0.0.0"]
+ENTRYPOINT ["java", "-Dquarkus.http.host=0.0.0.0", "-jar", "/work/quarkus-run.jar"]
