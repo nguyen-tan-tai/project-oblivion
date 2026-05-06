@@ -18,6 +18,23 @@ spec:
         - name: api
           image: localhost:32000/oblivion-api:latest
           imagePullPolicy: IfNotPresent
+          env:
+            - name: OBLIVION_DYNAMODB_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: oblivion-api-config
+                  key: OBLIVION_DYNAMODB_ENDPOINT
+                  optional: true
+            - name: OBLIVION_DYNAMODB_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: oblivion-api-config
+                  key: OBLIVION_DYNAMODB_REGION
+            - name: OBLIVION_DYNAMODB_TABLE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: oblivion-api-config
+                  key: OBLIVION_DYNAMODB_TABLE_NAME
           ports:
             - containerPort: 8080
               name: http

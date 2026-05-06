@@ -3,6 +3,7 @@ package com.oblivion.dao;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.eclipse.microprofile.config.ConfigProvider;
 
@@ -13,6 +14,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -71,18 +73,24 @@ public class DynamoDbMessageDao implements MessageDao {
     }
 
     private DynamoDbClient createDynamoDbClient() {
-        return DynamoDbClient.builder()
-                .endpointOverride(URI.create(dynamoDbEndpoint()))
-                .region(Region.of(dynamoDbRegion()))
+        DynamoDbClientBuilder builder = DynamoDbClient.builder()
+            .region(Region.of(dynamoDbRegion()));
+
+        Optional<String> dynamoDbEndpoint = dynamoDbEndpoint();
+        if (dynamoDbEndpoint.isPresent()) {
+            builder.endpointOverride(URI.create(dynamoDbEndpoint.get()))
                 .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create("dummy", "dummy")))
-                .build();
+                    AwsBasicCredentials.create("dummy", "dummy")));
+        }
+
+        return builder.build();
     }
 
-    private String dynamoDbEndpoint() {
+        private Optional<String> dynamoDbEndpoint() {
         return ConfigProvider.getConfig()
                 .getOptionalValue("oblivion.dynamodb.endpoint", String.class)
-                .orElse(DEFAULT_DYNAMODB_ENDPOINT);
+            .map(String::trim)
+            .filter(value -> !value.isEmpty());
     }
 
     private String dynamoDbRegion() {

@@ -16,8 +16,14 @@ API_DIR="$ROOT_DIR"/api
 DOCKER_BUILDKIT=1 docker build -t oblivion-api "$API_DIR"
 docker tag oblivion-api localhost:32000/oblivion-api
 docker push localhost:32000/oblivion-api
+kubectl delete -f "$API_DIR"/k8s/dynamodb-service.yaml --ignore-not-found
+kubectl delete -f "$API_DIR"/k8s/dynamodb-deployment.yaml --ignore-not-found
+kubectl delete -f "$API_DIR"/k8s/configmap.yaml --ignore-not-found
 kubectl delete -f "$API_DIR"/k8s/service.yaml
 kubectl delete -f "$API_DIR"/k8s/deployment.yaml
+kubectl apply -f "$API_DIR"/k8s/configmap.yaml
+kubectl apply -f "$API_DIR"/k8s/dynamodb-deployment.yaml
+kubectl apply -f "$API_DIR"/k8s/dynamodb-service.yaml
 kubectl apply -f "$API_DIR"/k8s/deployment.yaml
 kubectl apply -f "$API_DIR"/k8s/service.yaml
 kubectl get pods
