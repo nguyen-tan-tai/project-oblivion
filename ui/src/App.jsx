@@ -1,153 +1,44 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import CreateMessagePage from './pages/CreateMessagePage'
+import DecryptPage from './pages/DecryptPage'
 import './App.css'
 
-const MESSAGE_LIMIT = 1024
-const API_URL = '/api/message'
-const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000
-
-function formatDateTimeLocal(timestamp) {
-  if (!timestamp) {
-    return ''
+function getRouteState() {
+  return {
+    pathname: window.location.pathname,
+    hash: window.location.hash,
   }
+}
 
-  const date = new Date(timestamp)
-  const pad = (value) => String(value).padStart(2, '0')
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+function getMessageId(pathname) {
+  const match = pathname.match(/^\/message\/([^/]+)$/)
+  return match ? decodeURIComponent(match[1]) : ''
 }
 
 function App() {
-  const [message, setMessage] = useState('')
-  const [expireTime, setExpireTime] = useState(() => Date.now() + DEFAULT_TTL_MS)
-  const [resultUrl, setResultUrl] = useState('')
-  const [error, setError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [routeState, setRouteState] = useState(() => getRouteState())
 
-  const remainingChars = MESSAGE_LIMIT - message.length
-
-  async function handleSubmit(event) {
-    event.preventDefault()
-
-    if (!message.trim()) {
-      setError('Message is required.')
-      setResultUrl('')
-      return
+  useEffect(() => {
+    function syncRouteState() {
+      setRouteState(getRouteState())
     }
 
-    if (message.length > MESSAGE_LIMIT) {
-      setError(`Message must be ${MESSAGE_LIMIT} characters or fewer.`)
-      setResultUrl('')
-      return
+    window.addEventListener('popstate', syncRouteState)
+    window.addEventListener('hashchange', syncRouteState)
+
+    return () => {
+      window.removeEventListener('popstate', syncRouteState)
+      window.removeEventListener('hashchange', syncRouteState)
     }
+  }, [])
 
-    setIsSubmitting(true)
-    setError('')
-    setResultUrl('')
+  const messageId = getMessageId(routeState.pathname)
 
-    try {
-      const payload = {
-        message,
-        expireTime,
-      }
-
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}.`)
-      }
-
-      const result = await response.json()
-      setResultUrl(JSON.stringify(result, null, 2))
-    } catch (requestError) {
-      setError(requestError.message || 'Unable to create the message.')
-    } finally {
-      setIsSubmitting(false)
-    }
+  if (messageId) {
+    return <DecryptPage messageId={messageId} hashFragment={routeState.hash} />
   }
 
-  return (
-    <main className="page-shell">
-      <section className="hero-panel">
-        <p className="eyebrow">Oblivion Project</p>
-        <h1>Create an oblivion message</h1>
-        <p className="hero-copy">
-          Enter a message and generate a one-time message address.
-        </p>
-      </section>
-
-      <section className="composer-panel">
-        <form className="message-form" onSubmit={handleSubmit}>
-          <label className="field-label" htmlFor="message">
-            Message
-          </label>
-          <textarea
-            id="message"
-            name="message"
-            className="message-input"
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            maxLength={MESSAGE_LIMIT}
-            placeholder="Write the message to protect..."
-            required
-          />
-
-          <label className="field-label" htmlFor="ttl">
-            TTL
-          </label>
-          <input
-            id="ttl"
-            name="ttl"
-            className="secret-input"
-            type="datetime-local"
-            value={formatDateTimeLocal(expireTime)}
-            onChange={(event) => {
-              const { value } = event.target
-
-              if (!value) {
-                setExpireTime(null)
-                return
-              }
-
-              const expireTtl = new Date(value).getTime()
-              setExpireTime(Number.isNaN(expireTtl) ? null : expireTtl)
-            }}
-          />
-
-          <div className="form-footer">
-            <span className="char-count">{remainingChars} characters left</span>
-            <button className="create-button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create'}
-            </button>
-          </div>
-        </form>
-
-        {error ? (
-          <div className="feedback-box error-box" role="alert">
-            {error}
-          </div>
-        ) : null}
-
-        <section className="result-panel" aria-live="polite">
-          <h2>Result</h2>
-          {resultUrl ? (
-            <div className="feedback-box result-box">
-              <pre>{resultUrl}</pre>
-            </div>
-          ) : (
-            <div className="feedback-box placeholder-box">
-              The API response will appear here.
-            </div>
-          )}
-        </section>
-      </section>
-    </main>
-  )
+  return <CreateMessagePage />
 }
 
 export default App

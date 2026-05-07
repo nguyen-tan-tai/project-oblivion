@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import com.oblivion.dao.MessageDao;
 import com.oblivion.dto.CreateMessageInput;
-import com.oblivion.dto.RetrieveMessageInput;
 import com.oblivion.entity.MessageRecord;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -34,17 +33,18 @@ public class MessageService {
         return Map.of("message_id", messageId);
     }
 
-    public Map<String, Object> retrieveAndForget(String id, RetrieveMessageInput retrieveMessageInput) {
+    public Map<String, Object> retrieveAndForget(String id) {
         MessageRecord messageRecord = messageDao.retrieveAndForgetMessage(id);
         if (messageRecord == null) {
             throw new NotFoundException("Message not found.");
         }
 
+        System.out.println("Retrieved message record: " + messageRecord);
+
         return Map.of(
                 "id", id,
                 "message", messageRecord.message(),
                 "createdAt", messageRecord.createdAt(),
-                "expireTime", messageRecord.expireTime(),
-                "status", "retrieved");
+                "expireTime", messageRecord.expireTime());
     }
 }
